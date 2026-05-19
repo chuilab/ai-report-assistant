@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ai-report-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: ai_report
+      TZ: Asia/Shanghai
+    ports:
+      - "3307:3306"
+    volumes:
+      - D:\dockers\mysql\data:/var/lib/mysql
+      - D:\dockers\mysql\conf:/etc/mysql/conf.d
+      - D:\dockers\mysql\logs:/var/log/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    networks:
+      - ai-report-network
+
+  redis:
+    image: redis:7.2.14
+    container_name: ai-report-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - D:\dockers\redis\data:/data
+      - D:\dockers\redis\conf:/usr/local/etc/redis
+    command: redis-server --appendonly yes
+    networks:
+      - ai-report-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: ai-report-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - D:\dockers\nginx\html:/usr/share/nginx/html
+      - D:\dockers\nginx\logs:/var/log/nginx
+      - D:\dockers\nginx\ssl:/etc/nginx/ssl
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - ai-report-network
+
+networks:
+  ai-report-network:
+    driver: bridge
