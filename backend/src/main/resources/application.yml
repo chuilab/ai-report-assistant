@@ -85,7 +85,7 @@ knife4j:
 # AI配置（预留）
 ai:
   deepseek:
-    api-key: sk-612a42f91c49445f81075ad9029ab54c
+    api-key: sk-52ef4b810eff43c4a37b81964cd3d435
     base-url: https://api.deepseek.com/v1
     model: deepseek-chat
 

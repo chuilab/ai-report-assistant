@@ -12,6 +12,11 @@ export function testApi(): Promise<TestResponse> {
   return request.get<TestResponse>('/test')
 }
 
+// AI 测试接口
+export function testAiApi(msg?: string): Promise<string> {
+  return request.get<string>('/ai/test', { params: { msg } })
+}
+
 // 示例：用户登录接口（后续扩展）
 export interface LoginParams {
   username: string

@@ -23,21 +23,43 @@
     <div class="card test-section">
       <h2 class="card-title">接口测试</h2>
       <div class="test-content">
-        <p class="test-desc">点击按钮测试后端接口连接状态</p>
-        <el-button
-          type="primary"
-          :loading="loading"
-          @click="handleTest"
-        >
-          测试接口
-        </el-button>
-        <div v-if="testResult" class="test-result">
-          <el-alert
-            :title="testResult.success ? '连接成功' : '连接失败'"
-            :type="testResult.success ? 'success' : 'error'"
-            :description="testResult.message"
-            show-icon
-          />
+        <div class="test-row">
+          <div class="test-item">
+            <p class="test-desc">点击按钮测试后端接口连接状态</p>
+            <el-button
+              type="primary"
+              :loading="loading"
+              @click="handleTest"
+            >
+              测试接口
+            </el-button>
+            <div v-if="testResult" class="test-result">
+              <el-alert
+                :title="testResult.success ? '连接成功' : '连接失败'"
+                :type="testResult.success ? 'success' : 'error'"
+                :description="testResult.message"
+                show-icon
+              />
+            </div>
+          </div>
+          <div class="test-item">
+            <p class="test-desc">点击按钮测试 AI 接口连接状态</p>
+            <el-button
+              type="success"
+              :loading="aiLoading"
+              @click="handleAiTest"
+            >
+              测试 AI
+            </el-button>
+            <div v-if="aiTestResult" class="test-result">
+              <el-alert
+                :title="aiTestResult.success ? 'AI 响应成功' : 'AI 响应失败'"
+                :type="aiTestResult.success ? 'success' : 'error'"
+                :description="aiTestResult.message"
+                show-icon
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -65,7 +87,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, markRaw } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Upload,
   Document,
@@ -74,7 +96,7 @@ import {
   DataAnalysis,
   ChatDotRound
 } from '@element-plus/icons-vue'
-import { testApi } from '@/api/test'
+import { testApi, testAiApi } from '@/api/test'
 
 // 功能列表
 const features = reactive([
@@ -111,6 +133,13 @@ const testResult = ref<{
   message: string
 } | null>(null)
 
+// AI 测试状态
+const aiLoading = ref(false)
+const aiTestResult = ref<{
+  success: boolean
+  message: string
+} | null>(null)
+
 // 测试接口
 async function handleTest() {
   loading.value = true
@@ -131,6 +160,44 @@ async function handleTest() {
     ElMessage.error('接口连接失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 测试 AI 接口
+async function handleAiTest() {
+  try {
+    const { value: inputText } = await ElMessageBox.prompt('请输入要发送给 AI 的内容', 'AI 测试', {
+      confirmButtonText: '发送',
+      cancelButtonText: '取消',
+      inputPlaceholder: '请输入文本...',
+      inputType: 'textarea',
+      inputValidator: (val: string) => {
+        if (!val || !val.trim()) return '内容不能为空'
+        return true
+      }
+    })
+
+    if (!inputText) return
+
+    aiLoading.value = true
+    aiTestResult.value = null
+
+    const reply = await testAiApi(inputText.trim())
+    aiTestResult.value = {
+      success: true,
+      message: reply
+    }
+    ElMessage.success('AI 响应成功')
+  } catch (error: any) {
+    if (error === 'cancel' || error === 'close') return
+
+    aiTestResult.value = {
+      success: false,
+      message: error.message || 'AI 接口调用失败，请检查后端服务是否启动'
+    }
+    ElMessage.error('AI 响应失败')
+  } finally {
+    aiLoading.value = false
   }
 }
 </script>
@@ -222,6 +289,18 @@ async function handleTest() {
     display: flex;
     flex-direction: column;
     gap: 16px;
+
+    .test-row {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+
+    .test-item {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
 
     .test-desc {
       font-size: 14px;
