@@ -1,0 +1,161 @@
+<template>
+  <div class="excel-upload">
+    <el-card>
+      <template #header>
+        <span>Excel 文件上传</span>
+      </template>
+
+      <el-upload
+        ref="uploadRef"
+        :auto-upload="false"
+        :limit="1"
+        accept=".xlsx,.xls"
+        drag
+        :file-list="fileList"
+        :on-exceed="handleExceed"
+        :on-change="handleFileChange"
+        :on-remove="handleRemove"
+      >
+        <el-icon class="upload-icon"><UploadFilled /></el-icon>
+        <div class="upload-text">将 Excel 文件拖到此处，或点击选择</div>
+        <template #tip>
+          <div class="upload-tip">仅支持 .xlsx / .xls 格式，单次上传一个文件</div>
+        </template>
+      </el-upload>
+
+      <el-button
+        type="primary"
+        :loading="uploading"
+        :disabled="fileList.length === 0"
+        class="upload-btn"
+        @click="handleUpload"
+      >
+        {{ uploading ? '上传中...' : '开始上传' }}
+      </el-button>
+
+      <el-alert
+        v-if="successMsg"
+        :title="successMsg"
+        type="success"
+        :closable="true"
+        show-icon
+        class="result-msg"
+        @close="successMsg = ''"
+      />
+
+      <el-alert
+        v-if="errorMsg"
+        :title="errorMsg"
+        type="error"
+        :closable="true"
+        show-icon
+        class="result-msg"
+        @close="errorMsg = ''"
+      />
+    </el-card>
+
+    <el-card v-if="parsedRows.length > 0" class="data-card">
+      <template #header>
+        <span>解析结果（共 {{ parsedRows.length }} 条）</span>
+      </template>
+      <el-table :data="parsedRows" stripe border style="width: 100%">
+        <el-table-column prop="date" label="日期" width="140" />
+        <el-table-column prop="sales" label="销售额" width="140" />
+        <el-table-column prop="orders" label="订单量" width="120" />
+        <el-table-column prop="users" label="用户数" width="120" />
+      </el-table>
+    </el-card>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import { UploadFilled } from '@element-plus/icons-vue'
+import type { UploadInstance, UploadFile, UploadUserFile } from 'element-plus'
+import { uploadExcel } from '@/api/excel'
+
+const uploadRef = ref<UploadInstance>()
+const fileList = ref<UploadUserFile[]>([])
+const uploading = ref(false)
+const successMsg = ref('')
+const errorMsg = ref('')
+const parsedRows = ref<any[]>([])
+
+function handleFileChange(file: UploadFile) {
+  fileList.value = [file]
+}
+
+function handleRemove() {
+  fileList.value = []
+}
+
+function handleExceed() {
+  errorMsg.value = '仅允许上传一个文件，请先移除已选文件'
+  successMsg.value = ''
+}
+
+async function handleUpload() {
+  if (fileList.value.length === 0) return
+
+  const file = fileList.value[0].raw
+  if (!file) {
+    errorMsg.value = '文件读取失败'
+    return
+  }
+
+  uploading.value = true
+  successMsg.value = ''
+  errorMsg.value = ''
+  parsedRows.value = []
+
+  try {
+    const res = await uploadExcel(file)
+    const data = res.data.data
+    successMsg.value = `上传成功，共读取 ${data.total} 条数据`
+    parsedRows.value = data.rows || []
+    fileList.value = []
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || '上传失败'
+    errorMsg.value = msg
+  } finally {
+    uploading.value = false
+  }
+}
+</script>
+
+<style scoped lang="scss">
+.excel-upload {
+  max-width: 600px;
+
+  .upload-icon {
+    font-size: 48px;
+    color: #c0c4cc;
+  }
+
+  .upload-text {
+    margin-top: 12px;
+    color: #606266;
+    font-size: 14px;
+  }
+
+  .upload-tip {
+    color: #909399;
+    font-size: 12px;
+    margin-top: 8px;
+  }
+
+  .upload-btn {
+    margin-top: 16px;
+    width: 100%;
+  }
+
+  .result-msg {
+    margin-top: 16px;
+  }
+}
+
+.data-card {
+  max-width: 900px;
+  margin-top: 20px;
+}
+</style>

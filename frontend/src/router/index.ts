@@ -11,6 +11,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Dashboard',
         component: () => import('@/views/Dashboard.vue'),
         meta: { title: '工作台' }
+      },
+      {
+        path: 'upload',
+        name: 'ExcelUpload',
+        component: () => import('@/views/ExcelUpload.vue'),
+        meta: { title: '上传文件' }
       }
     ]
   }
