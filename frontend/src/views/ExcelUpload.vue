@@ -56,7 +56,16 @@
 
     <el-card v-if="parsedRows.length > 0" class="data-card">
       <template #header>
-        <span>解析结果（共 {{ parsedRows.length }} 条）</span>
+        <div class="data-card-header">
+          <span>解析结果（共 {{ parsedRows.length }} 条）</span>
+          <el-button
+            type="success"
+            :loading="analyzing"
+            @click="handleAnalyze"
+          >
+            {{ analyzing ? 'AI分析中...' : 'AI 智能分析' }}
+          </el-button>
+        </div>
       </template>
       <el-table :data="parsedRows" stripe border style="width: 100%">
         <el-table-column prop="date" label="日期" width="140" />
@@ -64,6 +73,13 @@
         <el-table-column prop="orders" label="订单量" width="120" />
         <el-table-column prop="users" label="用户数" width="120" />
       </el-table>
+    </el-card>
+
+    <el-card v-if="aiResult" class="ai-card">
+      <template #header>
+        <span>AI 分析结果</span>
+      </template>
+      <div class="ai-result-content">{{ aiResult }}</div>
     </el-card>
   </div>
 </template>
@@ -73,13 +89,16 @@ import { ref } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
 import type { UploadInstance, UploadFile, UploadUserFile } from 'element-plus'
 import { uploadExcel } from '@/api/excel'
+import { analyzeReport } from '@/api/report'
 
 const uploadRef = ref<UploadInstance>()
 const fileList = ref<UploadUserFile[]>([])
 const uploading = ref(false)
+const analyzing = ref(false)
 const successMsg = ref('')
 const errorMsg = ref('')
 const parsedRows = ref<any[]>([])
+const aiResult = ref('')
 
 function handleFileChange(file: UploadFile) {
   fileList.value = [file]
@@ -121,6 +140,24 @@ async function handleUpload() {
     uploading.value = false
   }
 }
+
+async function handleAnalyze() {
+  if (parsedRows.value.length === 0) return
+
+  analyzing.value = true
+  aiResult.value = ''
+  errorMsg.value = ''
+
+  try {
+    const res = await analyzeReport(parsedRows.value)
+    aiResult.value = res.summary
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || 'AI分析失败'
+    errorMsg.value = msg
+  } finally {
+    analyzing.value = false
+  }
+}
 </script>
 
 <style scoped lang="scss">
@@ -157,5 +194,22 @@ async function handleUpload() {
 .data-card {
   max-width: 900px;
   margin-top: 20px;
+}
+
+.data-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-card {
+  max-width: 900px;
+  margin-top: 20px;
+
+  .ai-result-content {
+    white-space: pre-wrap;
+    line-height: 1.8;
+    color: #303133;
+  }
 }
 </style>
