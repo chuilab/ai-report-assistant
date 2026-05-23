@@ -1,323 +1,301 @@
 <template>
   <div class="dashboard">
-    <!-- 页面标题 -->
     <div class="page-header">
-      <h1 class="page-title">AI 报表助手</h1>
-      <p class="page-desc">智能分析您的数据，生成专业报表</p>
+      <h1 class="page-title">工作台</h1>
+      <p class="page-desc">销售数据概览与分析</p>
     </div>
 
-    <!-- 功能卡片 -->
-    <div class="card-grid">
-      <div class="feature-card" v-for="item in features" :key="item.title">
-        <div class="feature-icon">
-          <el-icon :size="32" :color="item.color">
-            <component :is="item.icon" />
-          </el-icon>
+    <el-space direction="vertical" :size="20" fill>
+      <!-- 快速操作 -->
+      <el-card shadow="never">
+        <div class="quick-actions">
+          <el-button type="primary" @click="$router.push('/upload')">
+            <el-icon><Upload /></el-icon>
+            上传 Excel 数据
+          </el-button>
+          <span class="action-hint" v-if="!hasData">请先上传 Excel 文件以查看数据分析</span>
+          <span class="action-hint" v-else>已加载 {{ salesData.length }} 条数据</span>
         </div>
-        <h3 class="feature-title">{{ item.title }}</h3>
-        <p class="feature-desc">{{ item.desc }}</p>
-      </div>
-    </div>
+      </el-card>
 
-    <!-- 测试区域 -->
-    <div class="card test-section">
-      <h2 class="card-title">接口测试</h2>
-      <div class="test-content">
-        <div class="test-row">
-          <div class="test-item">
-            <p class="test-desc">点击按钮测试后端接口连接状态</p>
-            <el-button
-              type="primary"
-              :loading="loading"
-              @click="handleTest"
-            >
-              测试接口
-            </el-button>
-            <div v-if="testResult" class="test-result">
-              <el-alert
-                :title="testResult.success ? '连接成功' : '连接失败'"
-                :type="testResult.success ? 'success' : 'error'"
-                :description="testResult.message"
-                show-icon
-              />
-            </div>
+      <!-- 销售趋势图 -->
+      <el-card v-if="hasData" shadow="never">
+        <template #header>
+          <span class="card-header-title">销售趋势图</span>
+        </template>
+        <SalesChart :data="salesData" />
+      </el-card>
+
+      <el-divider v-if="hasData" />
+
+      <!-- AI 数据分析 -->
+      <el-card v-if="aiAnalysis" shadow="never">
+        <template #header>
+          <div class="card-header-row">
+            <span class="card-header-title">AI 数据分析</span>
+            <el-tag type="success" size="small">AI 生成</el-tag>
           </div>
-          <div class="test-item">
-            <p class="test-desc">点击按钮测试 AI 接口连接状态</p>
-            <el-button
-              type="success"
-              :loading="aiLoading"
-              @click="handleAiTest"
-            >
-              测试 AI
-            </el-button>
-            <div v-if="aiTestResult" class="test-result">
-              <el-alert
-                :title="aiTestResult.success ? 'AI 响应成功' : 'AI 响应失败'"
-                :type="aiTestResult.success ? 'success' : 'error'"
-                :description="aiTestResult.message"
-                show-icon
-              />
-            </div>
-          </div>
+        </template>
+        <div class="ai-content" v-html="renderedAnalysis"></div>
+      </el-card>
+
+      <el-card v-if="!aiAnalysis && hasData" shadow="never">
+        <template #header>
+          <span class="card-header-title">AI 数据分析</span>
+        </template>
+        <div class="card-placeholder">
+          <p>点击按钮，让 AI 智能分析您的销售数据</p>
+          <el-button
+            type="primary"
+            :loading="analyzing"
+            @click="handleAnalyze"
+          >
+            {{ analyzing ? 'AI 分析中...' : '开始 AI 分析' }}
+          </el-button>
         </div>
-      </div>
-    </div>
+      </el-card>
 
-    <!-- 快速操作 -->
-    <div class="card quick-actions">
-      <h2 class="card-title">快速操作</h2>
-      <div class="action-grid">
-        <el-button @click="$router.push('/upload')">
-          <el-icon><Upload /></el-icon>
-          上传 Excel
-        </el-button>
-        <el-button @click="$router.push('/reports')">
-          <el-icon><Document /></el-icon>
-          查看报表
-        </el-button>
-        <el-button @click="$router.push('/analysis')">
-          <el-icon><TrendCharts /></el-icon>
-          数据分析
-        </el-button>
-      </div>
-    </div>
+      <el-divider v-if="aiAnalysis" />
+
+      <!-- AI 自动日报 -->
+      <el-card v-if="dailyReportText" shadow="never">
+        <template #header>
+          <div class="card-header-row">
+            <span class="card-header-title">AI 自动日报</span>
+            <el-tag type="warning" size="small">AI 生成</el-tag>
+          </div>
+        </template>
+        <div class="ai-content" v-html="renderedDaily"></div>
+      </el-card>
+
+      <el-card v-if="!dailyReportText && aiAnalysis" shadow="never">
+        <template #header>
+          <span class="card-header-title">AI 自动日报</span>
+        </template>
+        <div class="card-placeholder">
+          <p>基于数据分析结果，一键生成销售日报</p>
+          <el-button
+            type="success"
+            :loading="generating"
+            @click="handleGenerateDaily"
+          >
+            {{ generating ? '生成中...' : '生成 AI 日报' }}
+          </el-button>
+        </div>
+      </el-card>
+
+      <!-- 空状态 -->
+      <el-card v-if="!hasData" shadow="never">
+        <div class="empty-state">
+          <el-icon :size="64" color="#c0c4cc"><TrendCharts /></el-icon>
+          <p class="empty-title">暂无数据</p>
+          <p class="empty-desc">上传 Excel 文件后，此处将展示销售趋势图、AI 分析和自动日报</p>
+        </div>
+      </el-card>
+    </el-space>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, markRaw } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  Upload,
-  Document,
-  TrendCharts,
-  Clock,
-  DataAnalysis,
-  ChatDotRound
-} from '@element-plus/icons-vue'
-import { testApi, testAiApi } from '@/api/test'
+import { ref } from 'vue'
+import { Upload, TrendCharts } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import SalesChart from '@/components/chart/SalesChart.vue'
+import { analyzeReport, dailyReport } from '@/api/report'
 
-// 功能列表
-const features = reactive([
-  {
-    title: 'Excel 上传',
-    desc: '支持多种格式 Excel 文件上传，自动解析数据结构',
-    icon: markRaw(Upload),
-    color: '#409eff'
-  },
-  {
-    title: 'AI 分析',
-    desc: '智能分析数据趋势，自动生成洞察报告',
-    icon: markRaw(ChatDotRound),
-    color: '#67c23a'
-  },
-  {
-    title: '图表展示',
-    desc: '丰富的可视化图表，直观呈现数据价值',
-    icon: markRaw(TrendCharts),
-    color: '#e6a23c'
-  },
-  {
-    title: '历史记录',
-    desc: '完整保存分析历史，随时回溯查看',
-    icon: markRaw(Clock),
-    color: '#909399'
-  }
-])
+interface SalesRecord {
+  date: string
+  sales: number
+  orders: number
+  users?: number
+}
 
-// 测试状态
-const loading = ref(false)
-const testResult = ref<{
-  success: boolean
-  message: string
-} | null>(null)
+const salesData = ref<SalesRecord[]>([])
+const hasData = ref(false)
+const analyzing = ref(false)
+const generating = ref(false)
+const aiAnalysis = ref('')
+const dailyReportText = ref('')
 
-// AI 测试状态
-const aiLoading = ref(false)
-const aiTestResult = ref<{
-  success: boolean
-  message: string
-} | null>(null)
-
-// 测试接口
-async function handleTest() {
-  loading.value = true
-  testResult.value = null
-
+// 尝试从 sessionStorage 恢复数据
+const cached = sessionStorage.getItem('dashboard_sales_data')
+if (cached) {
   try {
-    const res = await testApi()
-    testResult.value = {
-      success: true,
-      message: `服务器响应: ${res.message} (时间: ${new Date(res.timestamp).toLocaleString()})`
+    const parsed = JSON.parse(cached)
+    if (parsed.length > 0) {
+      salesData.value = parsed
+      hasData.value = true
     }
-    ElMessage.success('接口连接成功')
-  } catch (error: any) {
-    testResult.value = {
-      success: false,
-      message: error.message || '接口连接失败，请检查后端服务是否启动'
-    }
-    ElMessage.error('接口连接失败')
+  } catch { /* ignore */ }
+}
+
+function renderMarkdown(text: string): string {
+  return text
+    .replace(/### (.+)/g, '<h3>$1</h3>')
+    .replace(/## (.+)/g, '<h2>$1</h2>')
+    .replace(/# (.+)/g, '<h2>$1</h2>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/- (.+)/g, '<li>$1</li>')
+    .replace(/(\d+)\. (.+)/g, '<li>$1. $2</li>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>')
+    .replace(/<li>/g, '<ul><li>')
+    .replace(/<\/li>/g, '</li></ul>')
+}
+
+const renderedAnalysis = ref('')
+const renderedDaily = ref('')
+
+async function handleAnalyze() {
+  if (salesData.value.length === 0) return
+  analyzing.value = true
+  try {
+    const res = await analyzeReport(salesData.value)
+    aiAnalysis.value = res.summary
+    renderedAnalysis.value = renderMarkdown(res.summary)
+    ElMessage.success('AI 分析完成')
+  } catch (err: any) {
+    ElMessage.error(err.message || 'AI 分析失败')
   } finally {
-    loading.value = false
+    analyzing.value = false
   }
 }
 
-// 测试 AI 接口
-async function handleAiTest() {
+async function handleGenerateDaily() {
+  if (salesData.value.length === 0) return
+  generating.value = true
   try {
-    const { value: inputText } = await ElMessageBox.prompt('请输入要发送给 AI 的内容', 'AI 测试', {
-      confirmButtonText: '发送',
-      cancelButtonText: '取消',
-      inputPlaceholder: '请输入文本...',
-      inputType: 'textarea',
-      inputValidator: (val: string) => {
-        if (!val || !val.trim()) return '内容不能为空'
-        return true
-      }
-    })
-
-    if (!inputText) return
-
-    aiLoading.value = true
-    aiTestResult.value = null
-
-    const reply = await testAiApi(inputText.trim())
-    aiTestResult.value = {
-      success: true,
-      message: reply
-    }
-    ElMessage.success('AI 响应成功')
-  } catch (error: any) {
-    if (error === 'cancel' || error === 'close') return
-
-    aiTestResult.value = {
-      success: false,
-      message: error.message || 'AI 接口调用失败，请检查后端服务是否启动'
-    }
-    ElMessage.error('AI 响应失败')
+    const res = await dailyReport(salesData.value)
+    dailyReportText.value = res.summary
+    renderedDaily.value = renderMarkdown(res.summary)
+    ElMessage.success('日报生成完成')
+  } catch (err: any) {
+    ElMessage.error(err.message || '日报生成失败')
   } finally {
-    aiLoading.value = false
+    generating.value = false
   }
 }
+
+// 暴露方法供外部调用（ExcelUpload 跳转后传数据）
+function loadData(data: SalesRecord[]) {
+  salesData.value = data
+  hasData.value = data.length > 0
+  aiAnalysis.value = ''
+  dailyReportText.value = ''
+  renderedAnalysis.value = ''
+  renderedDaily.value = ''
+  sessionStorage.setItem('dashboard_sales_data', JSON.stringify(data))
+}
+
+defineExpose({ loadData })
 </script>
 
 <style scoped lang="scss">
 .dashboard {
   padding: 20px;
+  max-width: 1200px;
 }
 
 .page-header {
   margin-bottom: 24px;
 
   .page-title {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 600;
     color: #303133;
-    margin-bottom: 8px;
+    margin: 0 0 6px;
   }
 
   .page-desc {
     font-size: 14px;
     color: #909399;
-  }
-}
-
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-.feature-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.04);
-  transition: transform 0.2s, box-shadow 0.2s;
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.08);
-  }
-
-  .feature-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
-    background: #f5f7fa;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 16px;
-  }
-
-  .feature-title {
-    font-size: 16px;
-    font-weight: 500;
-    color: #303133;
-    margin-bottom: 8px;
-  }
-
-  .feature-desc {
-    font-size: 13px;
-    color: #909399;
-    line-height: 1.6;
-  }
-}
-
-.card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.04);
-  margin-bottom: 20px;
-
-  .card-title {
-    font-size: 16px;
-    font-weight: 500;
-    color: #303133;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #ebeef5;
-  }
-}
-
-.test-section {
-  .test-content {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-
-    .test-row {
-      display: flex;
-      gap: 40px;
-      flex-wrap: wrap;
-    }
-
-    .test-item {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .test-desc {
-      font-size: 14px;
-      color: #606266;
-    }
-
-    .test-result {
-      max-width: 500px;
-    }
+    margin: 0;
   }
 }
 
 .quick-actions {
-  .action-grid {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  .action-hint {
+    font-size: 13px;
+    color: #909399;
+  }
+}
+
+.card-header-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-placeholder {
+  text-align: center;
+  padding: 32px 0;
+  color: #909399;
+
+  p {
+    margin: 0 0 16px;
+    font-size: 14px;
+  }
+}
+
+.ai-content {
+  line-height: 1.8;
+  color: #303133;
+  font-size: 14px;
+
+  :deep(h2) {
+    font-size: 16px;
+    margin: 16px 0 8px;
+    color: #303133;
+  }
+
+  :deep(h3) {
+    font-size: 15px;
+    margin: 12px 0 6px;
+    color: #606266;
+  }
+
+  :deep(p) {
+    margin: 6px 0;
+  }
+
+  :deep(ul), :deep(ol) {
+    padding-left: 20px;
+    margin: 6px 0;
+  }
+
+  :deep(li) {
+    margin: 4px 0;
+  }
+
+  :deep(strong) {
+    color: #303133;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 0;
+
+  .empty-title {
+    font-size: 16px;
+    color: #909399;
+    margin: 16px 0 8px;
+  }
+
+  .empty-desc {
+    font-size: 13px;
+    color: #c0c4cc;
+    margin: 0;
   }
 }
 </style>

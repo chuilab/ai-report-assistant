@@ -7,3 +7,7 @@ export interface AnalyzeResponse {
 export function analyzeReport(data: Record<string, any>[]) {
   return request.post<AnalyzeResponse>('/report/analyze', { data })
 }
+
+export function dailyReport(data: Record<string, any>[]) {
+  return request.post<AnalyzeResponse>('/report/daily', { data })
+}

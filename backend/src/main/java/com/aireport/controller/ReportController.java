@@ -24,9 +24,17 @@ public class ReportController {
     private final AiService aiService;
     private final PromptBuilder promptBuilder;
 
-    @Operation(summary = "AI分析报表", description = "上传销售数据，生成AI日报分析")
+    @Operation(summary = "AI分析报表", description = "上传销售数据，生成AI数据分析")
     @PostMapping("/analyze")
     public Result<Map<String, String>> analyze(@Valid @RequestBody AnalyzeRequest request) {
+        String prompt = promptBuilder.buildAnalyzePrompt(request.getData());
+        String aiResult = aiService.chatWithDeepSeek(prompt);
+        return Result.success(Map.of("summary", aiResult));
+    }
+
+    @Operation(summary = "AI销售日报", description = "上传销售数据，生成AI销售日报")
+    @PostMapping("/daily")
+    public Result<Map<String, String>> daily(@Valid @RequestBody AnalyzeRequest request) {
         String prompt = promptBuilder.buildDailyReportPrompt(request.getData());
         String aiResult = aiService.chatWithDeepSeek(prompt);
         return Result.success(Map.of("summary", aiResult));

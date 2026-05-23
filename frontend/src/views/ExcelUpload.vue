@@ -41,7 +41,13 @@
         show-icon
         class="result-msg"
         @close="successMsg = ''"
-      />
+      >
+        <template #default>
+          <el-button type="primary" size="small" @click="router.push('/dashboard')">
+            查看工作台
+          </el-button>
+        </template>
+      </el-alert>
 
       <el-alert
         v-if="errorMsg"
@@ -88,8 +94,11 @@
 import { ref } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
 import type { UploadInstance, UploadFile, UploadUserFile } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { uploadExcel } from '@/api/excel'
 import { analyzeReport } from '@/api/report'
+
+const router = useRouter()
 
 const uploadRef = ref<UploadInstance>()
 const fileList = ref<UploadUserFile[]>([])
@@ -132,6 +141,7 @@ async function handleUpload() {
     const data = res.data.data
     successMsg.value = `上传成功，共读取 ${data.total} 条数据`
     parsedRows.value = data.rows || []
+    sessionStorage.setItem('dashboard_sales_data', JSON.stringify(data.rows || []))
     fileList.value = []
   } catch (err: any) {
     const msg = err?.response?.data?.message || err?.message || '上传失败'
